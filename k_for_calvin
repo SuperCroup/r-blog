@@ -1,0 +1,49 @@
+df <- tibble::tibble(
+  data = c("1K", "1.4K", "14K", "1", "1.4K and others", "John K and 1K others", "others", "1"))
+
+
+# split each character string into a vector, split by space
+# each element of the column is a list
+df_split <- 
+  df %>% 
+  dplyr::mutate(split_string = stringr::str_split(data, " "), numeric_element = NA)
+
+# empty list & vector for use in loops
+numeric_test <- list()
+has_numeric <- vector(length = nrow(df_split))
+
+for (row in 1:nrow(df_split)) { 
+  numeric_test[[row]] <- as.numeric(substr(df_split$split_string[[row]], 1, 1))
+  # list correspending to the split string column in the data frame
+  # each list element is a vector with either NA or the numeric element
+  # of each string in the character vector
+  
+  has_numeric[row] <- length(numeric_test[[row]][!is.na(numeric_test[[row]])]) != 0
+  # tests whether each case in the original data has a numeric part at all
+  # so we can remove the "others" element
+}  
+
+
+# filters out cases that have no numeric element
+df_split_numeric <- df_split[has_numeric, ]
+numeric_test <- numeric_test[has_numeric]
+
+
+# extract the numeric + K element only
+for (row in 1:nrow(df_split_numeric)) { 
+  df_split_numeric$numeric_element[row] <- 
+    df_split_numeric$split_string[[row]][which(!(is.na(numeric_test[[row]])))]
+}
+
+# turn into numeric with K as * 1000
+df_split_numeric <- 
+  df_split_numeric %>% 
+  mutate(
+    output = 
+      case_when(
+        stringr::str_detect(numeric_element, "K") ~ 
+          as.numeric(stringr::str_replace(numeric_element, "K", "")) * 1000, 
+        TRUE ~ as.numeric(numeric_element)
+      )
+  )
+
